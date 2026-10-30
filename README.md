@@ -9,6 +9,7 @@ An automated, AI-driven intelligence platform that ingests global AML/CFT regula
 - **AI-Driven Scoring & Classification** -- Every regulatory update is analyzed by Google Gemini and assigned a relevance score (1--10), jurisdiction, status, and a recommended action for compliance officers.
 - **Automated Multi-Source Ingestion** -- RSS and PDF sources from FATF, FinCEN, OFAC, FCA, AMLA, and EBA are fetched daily, deduplicated, and stored automatically.
 - **Interactive Streamlit Dashboard** -- Filter events by relevance score, jurisdiction, and status. Every item links back to the original source for full provenance.
+- **Interactive Triage Workflow** -- Assign events to team members and update their triage status (Unread, In Review, Actioned, Dismissed) directly from the dashboard. All changes persist to the database instantly.
 
 ## Open Core Model
 
