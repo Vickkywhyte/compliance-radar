@@ -7,10 +7,17 @@ from src.ingestion.feeds import fetch_rss_feed
 logger = logging.getLogger(__name__)
 
 TARGET_FEEDS: list[str] = [
+    # Global
     "https://www.fatf-gafi.org/content/fatf-gafi/en/publications.rss",
+    # United States
     "https://www.fincen.gov/news/news-releases/rss.xml",
     "https://ofac.treasury.gov/recent-actions/rss.xml",
+    # United Kingdom
     "https://www.fca.org.uk/news/rss.xml",
+    # European Union
+    "https://www.amla.europa.eu/node/19/rss_en",
+    "https://www.eba.europa.eu/news-press/news/rss.xml",
+    "https://www.esma.europa.eu/press-news/esma-news/rss.xml",
 ]
 
 
