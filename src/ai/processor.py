@@ -77,6 +77,7 @@ def _call_gemini(client: genai.Client, user_prompt: str) -> str:
             response_mime_type="application/json",
             response_schema=ComplianceEvent,
             system_instruction=SYSTEM_PROMPT,
+            http_options=types.HttpOptions(timeout=60_000),
         ),
     )
     return response.text
@@ -108,7 +109,7 @@ def process_article(raw_text: str, url: str) -> ComplianceEvent:
         event = ComplianceEvent.model_validate_json(response_text)
     except ValidationError:
         logger.exception(
-            "Pydantic validation failed for Gemini response. URL: %s, Response: %s",
+            "Pydantic validation failed for Gemini response. URL: %s, Response (truncated): %.500s",
             url,
             response_text,
         )

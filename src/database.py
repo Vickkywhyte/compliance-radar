@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
 from supabase import Client, create_client
@@ -13,12 +14,21 @@ logger = logging.getLogger(__name__)
 TABLE_NAME = "compliance_events"
 
 
+def _get_secret(key: str) -> Optional[str]:
+    """Read a secret from st.secrets (Streamlit Cloud) or os.getenv (local/.env)."""
+    try:
+        import streamlit as st
+        return st.secrets.get(key)
+    except (ImportError, AttributeError, FileNotFoundError):
+        return os.getenv(key)
+
+
 def get_supabase_client() -> Client:
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
+    url = _get_secret("SUPABASE_URL")
+    key = _get_secret("SUPABASE_KEY")
     if not url or not key:
         raise EnvironmentError(
-            "SUPABASE_URL and SUPABASE_KEY must be set in the .env file."
+            "SUPABASE_URL and SUPABASE_KEY must be set in .env or Streamlit secrets."
         )
     return create_client(url, key)
 
