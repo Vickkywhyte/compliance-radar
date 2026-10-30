@@ -24,3 +24,11 @@ class ComplianceEvent(BaseModel):
     recommended_action: str = Field(
         description="A specific, actionable next step for a compliance officer."
     )
+    triage_status: Literal['Unread', 'In Review', 'Actioned', 'Dismissed'] = Field(
+        default='Unread',
+        description="The current triage state of the event."
+    )
+    assigned_to: Optional[str] = Field(
+        default=None,
+        description="The team member assigned to review this event."
+    )

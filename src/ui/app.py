@@ -88,6 +88,15 @@ def main() -> None:
     )
     filtered = filtered[filtered["status"].isin(selected_statuses)]
 
+    triage_options = ["Unread", "In Review", "Actioned", "Dismissed"]
+    selected_triage = st.sidebar.multiselect(
+        "Triage Status",
+        options=triage_options,
+        default=triage_options,
+    )
+    if "triage_status" in filtered.columns:
+        filtered = filtered[filtered["triage_status"].isin(selected_triage)]
+
     # ── Enterprise teaser ──
     st.sidebar.markdown("---")
     st.sidebar.header("Enterprise Edition")
@@ -107,13 +116,15 @@ def main() -> None:
 
     st.divider()
 
-    # ── Data table ──
+    # ── Data table with triage editing ──
     display_columns = [
         "title",
         "jurisdiction",
         "status",
         "relevance_score",
         "effective_date",
+        "triage_status",
+        "assigned_to",
         "summary",
         "recommended_action",
         "source_url",
@@ -121,10 +132,22 @@ def main() -> None:
     ]
     display_columns = [c for c in display_columns if c in filtered.columns]
 
-    st.dataframe(
+    edited_df = st.data_editor(
         filtered[display_columns],
         width="stretch",
         hide_index=True,
+        disabled=[
+            "title",
+            "jurisdiction",
+            "status",
+            "relevance_score",
+            "effective_date",
+            "summary",
+            "recommended_action",
+            "source_url",
+            "created_at",
+        ],
+        key="triage_editor",
         column_config={
             "title": st.column_config.TextColumn("Title", width="medium"),
             "jurisdiction": st.column_config.TextColumn("Jurisdiction", width="small"),
@@ -137,12 +160,47 @@ def main() -> None:
                 format="%d",
             ),
             "effective_date": st.column_config.DateColumn("Effective Date", width="small"),
+            "triage_status": st.column_config.SelectboxColumn(
+                "Triage",
+                width="small",
+                options=["Unread", "In Review", "Actioned", "Dismissed"],
+            ),
+            "assigned_to": st.column_config.TextColumn("Assigned To", width="small"),
             "summary": st.column_config.TextColumn("Summary", width="large"),
             "recommended_action": st.column_config.TextColumn("Action", width="medium"),
             "source_url": st.column_config.LinkColumn("Source", width="small", display_text="Open"),
             "created_at": st.column_config.DatetimeColumn("Ingested", width="small", format="YYYY-MM-DD HH:mm"),
         },
     )
+
+    # ── Save button & persist triage edits to Supabase ──
+    if st.button("Save Changes to Database", type="primary"):
+        if "id" not in filtered.columns:
+            st.warning("Cannot save: no event IDs found in the data.")
+        else:
+            saved = 0
+            for idx in edited_df.index:
+                original = filtered.loc[idx]
+                edited = edited_df.loc[idx]
+                changes: dict = {}
+                if "triage_status" in edited_df.columns and edited["triage_status"] != original.get("triage_status"):
+                    changes["triage_status"] = edited["triage_status"]
+                if "assigned_to" in edited_df.columns and edited.get("assigned_to") != original.get("assigned_to"):
+                    changes["assigned_to"] = edited.get("assigned_to")
+                if changes:
+                    try:
+                        client = get_supabase_client()
+                        client.table(TABLE_NAME).update(changes).eq("id", original["id"]).execute()
+                        logger.info("Updated triage for event %s: %s", original["id"], changes)
+                        saved += 1
+                    except Exception:
+                        logger.exception("Failed to update triage for event %s", original["id"])
+                        st.error(f"Failed to save triage update for: {original.get('title', 'unknown')}")
+            if saved:
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.info("No changes detected.")
 
 
 if __name__ == "__main__":
