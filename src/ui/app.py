@@ -115,20 +115,21 @@ def main() -> None:
         width="stretch",
         hide_index=True,
         column_config={
-            "title": st.column_config.TextColumn("Title", width="large"),
-            "jurisdiction": st.column_config.TextColumn("Jurisdiction"),
-            "status": st.column_config.TextColumn("Status"),
+            "title": st.column_config.TextColumn("Title", width="medium"),
+            "jurisdiction": st.column_config.TextColumn("Jurisdiction", width="small"),
+            "status": st.column_config.TextColumn("Status", width="small"),
             "relevance_score": st.column_config.ProgressColumn(
                 "Relevance",
+                width="small",
                 min_value=1,
                 max_value=10,
                 format="%d",
             ),
-            "effective_date": st.column_config.DateColumn("Effective Date"),
+            "effective_date": st.column_config.DateColumn("Effective Date", width="small"),
             "summary": st.column_config.TextColumn("Summary", width="large"),
-            "recommended_action": st.column_config.TextColumn("Action", width="large"),
-            "source_url": st.column_config.LinkColumn("Source", display_text="Open"),
-            "created_at": st.column_config.DatetimeColumn("Ingested", format="YYYY-MM-DD HH:mm"),
+            "recommended_action": st.column_config.TextColumn("Action", width="medium"),
+            "source_url": st.column_config.LinkColumn("Source", width="small", display_text="Open"),
+            "created_at": st.column_config.DatetimeColumn("Ingested", width="small", format="YYYY-MM-DD HH:mm"),
         },
     )
 
