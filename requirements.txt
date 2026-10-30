@@ -1,0 +1,7 @@
+streamlit
+supabase
+google-generativeai
+feedparser
+pydantic
+python-dotenv
+pytest
