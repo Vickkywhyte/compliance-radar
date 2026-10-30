@@ -88,6 +88,17 @@ def main() -> None:
     )
     filtered = filtered[filtered["status"].isin(selected_statuses)]
 
+    # ── Enterprise teaser ──
+    st.sidebar.markdown("---")
+    st.sidebar.header("Enterprise Edition")
+    st.sidebar.markdown(
+        "- Multi-user authentication\n"
+        "- Custom Regulatory Feeds\n"
+        "- Automated Audit Logs\n"
+        "- Slack/Teams Alerts"
+    )
+    st.sidebar.info("Want these features for your team? Contact us for an Enterprise license.")
+
     # ── Summary metrics ──
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Events", len(filtered))
