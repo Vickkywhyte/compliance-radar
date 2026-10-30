@@ -1,4 +1,5 @@
 import logging
+import time
 
 from src.ai.processor import process_article
 from src.database import check_exists, insert_event
@@ -17,7 +18,6 @@ TARGET_FEEDS: list[str] = [
     # European Union
     "https://www.amla.europa.eu/node/19/rss_en",
     "https://www.eba.europa.eu/news-press/news/rss.xml",
-    "https://www.esma.europa.eu/press-news/esma-news/rss.xml",
 ]
 
 
@@ -59,6 +59,7 @@ def run_pipeline() -> dict:
                 insert_event(event)
                 stats["inserted"] += 1
                 logger.info("Inserted: %s", title)
+                time.sleep(4.5)
 
             except Exception:
                 logger.exception("Failed to process article: %s", url)
