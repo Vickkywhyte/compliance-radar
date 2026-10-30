@@ -1,7 +1,8 @@
 streamlit
 supabase
-google-generativeai
+google-genai
 feedparser
 pydantic
 python-dotenv
+tenacity
 pytest
