@@ -7,6 +7,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 import pandas as pd
 import streamlit as st
 
+_TRIAGE_FIELDS = ("triage_status", "assigned_to")
+
+
+def _normalize(value: object) -> object:
+    """Convert pandas NaN/NaT to None for safe comparison and JSON serialization."""
+    if pd.isna(value):
+        return None
+    return value
+
 from src.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
@@ -183,19 +192,22 @@ def main() -> None:
                 original = filtered.loc[idx]
                 edited = edited_df.loc[idx]
                 changes: dict = {}
-                if "triage_status" in edited_df.columns and edited["triage_status"] != original.get("triage_status"):
-                    changes["triage_status"] = edited["triage_status"]
-                if "assigned_to" in edited_df.columns and edited.get("assigned_to") != original.get("assigned_to"):
-                    changes["assigned_to"] = edited.get("assigned_to")
+                for field in _TRIAGE_FIELDS:
+                    if field not in edited_df.columns:
+                        continue
+                    old_val = _normalize(original.get(field))
+                    new_val = _normalize(edited.get(field))
+                    if new_val != old_val:
+                        changes[field] = new_val
                 if changes:
                     try:
                         client = get_supabase_client()
                         client.table(TABLE_NAME).update(changes).eq("id", original["id"]).execute()
                         logger.info("Updated triage for event %s: %s", original["id"], changes)
                         saved += 1
-                    except Exception:
+                    except Exception as exc:
                         logger.exception("Failed to update triage for event %s", original["id"])
-                        st.error(f"Failed to save triage update for: {original.get('title', 'unknown')}")
+                        st.error(f"Failed to save triage update for: {original.get('title', 'unknown')} — {exc}")
             if saved:
                 st.cache_data.clear()
                 st.rerun()
