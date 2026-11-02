@@ -29,6 +29,9 @@ def _build_html(events: list[dict]) -> str:
             <span style="color:#666;font-size:13px;">
               {ev.get('jurisdiction', 'Unknown')} &middot; Score: {score}/10
             </span>
+            <p style="color:#444;font-size:13px;line-height:1.5;margin:6px 0 0;">
+              {ev.get('summary', '')}
+            </p>
           </td>
         </tr>"""
 
@@ -96,7 +99,7 @@ def send_daily_digest() -> None:
         db_client = get_supabase_client()
         result = (
             db_client.table(TABLE_NAME)
-            .select("title, jurisdiction, relevance_score, source_url")
+            .select("title, jurisdiction, relevance_score, source_url, summary")
             .gte("created_at", cutoff)
             .gte("relevance_score", 7)
             .eq("triage_status", "Unread")
@@ -121,7 +124,8 @@ def send_daily_digest() -> None:
     try:
         brevo_client.transactional_emails.send_transac_email(
             sender={"email": sender_email, "name": "Global Compliance Radar"},
-            to=[{"email": email} for email in recipients],
+            to=[{"email": sender_email}],
+            bcc=[{"email": email} for email in recipients],
             subject=subject,
             html_content=html_body,
         )
