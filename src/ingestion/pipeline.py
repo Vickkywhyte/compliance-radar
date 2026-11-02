@@ -4,6 +4,7 @@ import time
 from src.ai.processor import process_article
 from src.database import check_exists, insert_event
 from src.ingestion.feeds import fetch_rss_feed
+from src.notifications.emailer import send_daily_digest
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,9 @@ def run_pipeline() -> dict:
         stats["inserted"],
         stats["errors"],
     )
+
+    send_daily_digest()
+
     return stats
 
 
