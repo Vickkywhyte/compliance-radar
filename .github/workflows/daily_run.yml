@@ -13,6 +13,8 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      DIGEST_EMAIL_TO: ${{ secrets.DIGEST_EMAIL_TO }}
 
     steps:
       - name: Checkout code
