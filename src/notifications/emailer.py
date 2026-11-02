@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
-import resend
+from brevo import Brevo
 from dotenv import load_dotenv
 
 from src.database import get_supabase_client
@@ -50,26 +50,52 @@ def _build_html(events: list[dict]) -> str:
     </div>"""
 
 
+def _get_subscriber_emails() -> list[str]:
+    """Fetch active subscriber emails from Supabase, falling back to env var."""
+    try:
+        client = get_supabase_client()
+        result = (
+            client.table("subscribers")
+            .select("email")
+            .eq("is_active", True)
+            .execute()
+        )
+        emails = [row["email"] for row in result.data]
+        if emails:
+            return emails
+    except Exception:
+        logger.exception("Failed to query subscribers table.")
+
+    fallback = os.getenv("DIGEST_EMAIL_TO")
+    if fallback:
+        logger.info("No active subscribers found. Using DIGEST_EMAIL_TO fallback.")
+        return [fallback]
+    return []
+
+
 def send_daily_digest() -> None:
-    """Query top unread high-relevance events from the last 24h and email a digest."""
-    api_key = os.getenv("RESEND_API_KEY")
+    """Query top unread high-relevance events from the last 24h and email a digest via Brevo."""
+    api_key = os.getenv("BREVO_API_KEY")
     if not api_key:
-        logger.warning("RESEND_API_KEY not set, skipping daily digest.")
+        logger.warning("BREVO_API_KEY not set, skipping daily digest.")
         return
 
-    recipient = os.getenv("DIGEST_EMAIL_TO")
-    if not recipient:
-        logger.warning("DIGEST_EMAIL_TO not set, skipping daily digest.")
+    sender_email = os.getenv("BREVO_SENDER_EMAIL")
+    if not sender_email:
+        logger.warning("BREVO_SENDER_EMAIL not set, skipping daily digest.")
         return
 
-    resend.api_key = api_key
+    recipients = _get_subscriber_emails()
+    if not recipients:
+        logger.warning("No subscribers and DIGEST_EMAIL_TO not set. Skipping digest.")
+        return
 
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
     try:
-        client = get_supabase_client()
+        db_client = get_supabase_client()
         result = (
-            client.table(TABLE_NAME)
+            db_client.table(TABLE_NAME)
             .select("title, jurisdiction, relevance_score, source_url")
             .gte("created_at", cutoff)
             .gte("relevance_score", 7)
@@ -88,14 +114,17 @@ def send_daily_digest() -> None:
         return
 
     html_body = _build_html(events)
+    subject = f"Compliance Radar Briefing — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+
+    brevo_client = Brevo(api_key=api_key)
 
     try:
-        resend.Emails.send({
-            "from": "onboarding@resend.dev",
-            "to": [recipient],
-            "subject": f"Compliance Radar Briefing — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-            "html": html_body,
-        })
-        logger.info("Daily digest sent to %s with %d events.", recipient, len(events))
+        brevo_client.transactional_emails.send_transac_email(
+            sender={"email": sender_email, "name": "Global Compliance Radar"},
+            to=[{"email": email} for email in recipients],
+            subject=subject,
+            html_content=html_body,
+        )
+        logger.info("Daily digest sent to %d subscribers with %d events.", len(recipients), len(events))
     except Exception:
-        logger.exception("Failed to send daily digest email.")
+        logger.exception("Failed to send daily digest via Brevo.")

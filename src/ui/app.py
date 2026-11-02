@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -127,6 +128,25 @@ def main() -> None:
     )
     if "triage_status" in filtered.columns:
         filtered = filtered[filtered["triage_status"].isin(selected_triage)]
+
+    # ── Daily Digest subscription ──
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📧 Get the Daily Digest")
+    digest_email = st.sidebar.text_input("Enter your email", key="digest_email")
+    if st.sidebar.button("Subscribe"):
+        if not digest_email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", digest_email):
+            st.sidebar.error("Please enter a valid email address.")
+        else:
+            try:
+                client = get_supabase_client()
+                client.table("subscribers").insert({"email": digest_email}).execute()
+                st.sidebar.success("Subscribed successfully!")
+            except Exception as exc:
+                if "unique" in str(exc).lower() or "duplicate" in str(exc).lower():
+                    st.sidebar.warning("You are already subscribed.")
+                else:
+                    logger.exception("Failed to subscribe email: %s", digest_email)
+                    st.sidebar.error(f"Subscription failed — {exc}")
 
     # ── Enterprise teaser ──
     st.sidebar.markdown("---")
