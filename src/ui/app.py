@@ -59,6 +59,8 @@ def main() -> None:
             "it does not constitute legal advice."
         )
     with header_right:
+        from datetime import datetime, timezone
+        now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         try:
             client = get_supabase_client()
             latest = (
@@ -68,13 +70,14 @@ def main() -> None:
                 .limit(1)
                 .execute()
             )
+            st.markdown(f"🟢 **System Live** | Checked: {now_utc}")
             if latest.data:
-                last_pull = pd.to_datetime(latest.data[0]["created_at"]).strftime("%Y-%m-%d %H:%M UTC")
-                st.markdown(f"🟢 **System Live**  \nLast Data Pull: {last_pull}")
+                last_ingested = pd.to_datetime(latest.data[0]["created_at"]).strftime("%Y-%m-%d")
+                st.caption(f"Latest Regulation Ingested: {last_ingested}")
             else:
-                st.markdown("🟡 **No data yet**")
+                st.caption("No regulations ingested yet.")
         except Exception:
-            st.markdown("🔴 **System Offline**")
+            st.markdown(f"🔴 **System Offline** | Checked: {now_utc}")
 
     # ── Sidebar filters ──
     st.sidebar.header("Filters")
