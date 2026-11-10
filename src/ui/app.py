@@ -17,26 +17,23 @@ def _normalize(value: object) -> object:
         return None
     return value
 
-from src.database import get_supabase_client
+from src.database import (
+    fetch_all_events,
+    get_latest_event_timestamp,
+    insert_subscriber,
+    update_event_triage,
+)
 
 logger = logging.getLogger(__name__)
-
-TABLE_NAME = "compliance_events"
 
 
 @st.cache_data(ttl=300)
 def fetch_events() -> pd.DataFrame:
-    """Fetch all compliance events from Supabase and return as a DataFrame."""
-    client = get_supabase_client()
-    result = (
-        client.table(TABLE_NAME)
-        .select("*")
-        .order("created_at", desc=True)
-        .execute()
-    )
-    if not result.data:
+    """Fetch all compliance events from the database and return as a DataFrame."""
+    rows = fetch_all_events()
+    if not rows:
         return pd.DataFrame()
-    df = pd.DataFrame(result.data)
+    df = pd.DataFrame(rows)
     if "effective_date" in df.columns:
         df["effective_date"] = pd.to_datetime(df["effective_date"], errors="coerce").dt.date
     if "created_at" in df.columns:
@@ -63,17 +60,10 @@ def main() -> None:
         from datetime import datetime, timezone
         now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         try:
-            client = get_supabase_client()
-            latest = (
-                client.table(TABLE_NAME)
-                .select("created_at")
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
+            latest_ts = get_latest_event_timestamp()
             st.markdown(f"🟢 **System Live** | Checked: {now_utc}")
-            if latest.data:
-                last_ingested = pd.to_datetime(latest.data[0]["created_at"]).strftime("%Y-%m-%d")
+            if latest_ts:
+                last_ingested = pd.to_datetime(latest_ts).strftime("%Y-%m-%d")
                 st.caption(f"Latest Regulation Ingested: {last_ingested}")
             else:
                 st.caption("No regulations ingested yet.")
@@ -93,8 +83,8 @@ def main() -> None:
     try:
         df = fetch_events()
     except Exception:
-        logger.exception("Failed to fetch events from Supabase")
-        st.error("Could not connect to the database. Check your Supabase credentials.")
+        logger.exception("Failed to fetch events from database")
+        st.error("Could not connect to the database. Check your DATABASE_URL.")
         return
 
     if df.empty:
@@ -138,8 +128,7 @@ def main() -> None:
             st.sidebar.error("Please enter a valid email address.")
         else:
             try:
-                client = get_supabase_client()
-                client.table("subscribers").insert({"email": digest_email}).execute()
+                insert_subscriber(digest_email)
                 st.sidebar.success("Subscribed successfully!")
             except Exception as exc:
                 if "unique" in str(exc).lower() or "duplicate" in str(exc).lower():
@@ -224,7 +213,7 @@ def main() -> None:
         },
     )
 
-    # ── Save button & persist triage edits to Supabase ──
+    # ── Save button & persist triage edits ──
     if st.button("Save Changes to Database", type="primary"):
         if "id" not in filtered.columns:
             st.warning("Cannot save: no event IDs found in the data.")
@@ -243,8 +232,7 @@ def main() -> None:
                         changes[field] = new_val
                 if changes:
                     try:
-                        client = get_supabase_client()
-                        client.table(TABLE_NAME).update(changes).eq("id", original["id"]).execute()
+                        update_event_triage(str(original["id"]), changes)
                         logger.info("Updated triage for event %s: %s", original["id"], changes)
                         saved += 1
                     except Exception as exc:

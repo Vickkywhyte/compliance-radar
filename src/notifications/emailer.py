@@ -5,13 +5,11 @@ from datetime import datetime, timedelta, timezone
 from brevo import Brevo
 from dotenv import load_dotenv
 
-from src.database import get_supabase_client
+from src.database import fetch_digest_events, get_active_subscriber_emails
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-TABLE_NAME = "compliance_events"
 
 
 def _build_html(events: list[dict]) -> str:
@@ -54,16 +52,9 @@ def _build_html(events: list[dict]) -> str:
 
 
 def _get_subscriber_emails() -> list[str]:
-    """Fetch active subscriber emails from Supabase, falling back to env var."""
+    """Fetch active subscriber emails from the database, falling back to env var."""
     try:
-        client = get_supabase_client()
-        result = (
-            client.table("subscribers")
-            .select("email")
-            .eq("is_active", True)
-            .execute()
-        )
-        emails = [row["email"] for row in result.data]
+        emails = get_active_subscriber_emails()
         if emails:
             return emails
     except Exception:
@@ -96,22 +87,11 @@ def send_daily_digest() -> None:
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
     try:
-        db_client = get_supabase_client()
-        result = (
-            db_client.table(TABLE_NAME)
-            .select("title, jurisdiction, relevance_score, source_url, summary")
-            .gte("created_at", cutoff)
-            .gte("relevance_score", 7)
-            .eq("triage_status", "Unread")
-            .order("relevance_score", desc=True)
-            .limit(3)
-            .execute()
-        )
+        events = fetch_digest_events(cutoff)
     except Exception:
         logger.exception("Failed to query events for daily digest.")
         return
 
-    events = result.data
     if not events:
         logger.info("No high-relevance unread events in the last 24h. Skipping digest.")
         return
